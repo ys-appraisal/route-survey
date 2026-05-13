@@ -623,6 +623,7 @@ function resetRoute() {
   updateStats();
   hideResetBtn();
   showInfo(rosenNo, `↩ 未編集に戻しました`, '');
+  saveToGDrive();
 }
 
 function handleTap(rosenNo) {
@@ -964,6 +965,15 @@ async function saveToGDrive() {
     cloudStatus.textContent = '⚠️ 保存失敗';
   }
 }
+// ── 起動時にGeoJSONを自動読み込み ──
+window.addEventListener('load', () => {
+  if (typeof EMBEDDED_GEOJSON !== 'undefined') {
+    renderRoutes(EMBEDDED_GEOJSON);
+    document.getElementById('load-overlay').style.display = 'none';
+    document.getElementById('export-btn').style.display = 'block';
+    document.getElementById('action-hint').textContent = '路線をタップ→実査開始 / 再タップ→実査完了';
+  }
+});
 // ── 起動時にGeoJSONを自動読み込み ──
 window.addEventListener('load', () => {
   if (typeof EMBEDDED_GEOJSON !== 'undefined') {
