@@ -398,6 +398,64 @@ let gpsMarker = null;
 const LABEL_ZOOM = 18;  // ラベル表示ズーム閾値
 
 // =====================================================
+//  localStorage 自動保存・自動復元（gdrive_token とは別キー）
+//  ※既存の Drive 保存(saveToGDrive)・音声・現在地・タイルには手を加えない
+// =====================================================
+const ROUTE_SURVEY_STATE_KEY = 'ROUTE_SURVEY_STATE';
+
+// routeStates 全体を localStorage に保存（状態変更の全箇所で saveToGDrive と並走させる）
+function persistState() {
+  try {
+    localStorage.setItem(ROUTE_SURVEY_STATE_KEY, JSON.stringify(routeStates));
+  } catch (err) {
+    // 容量超過・無効化等でも実査操作は止めない
+    console.warn('persistState failed:', err);
+  }
+}
+
+// renderRoutes() の路線描画完了直後に呼ぶ。保存済み状態を routeStates にマージし、
+// 各路線の色・ヘッダー件数バッジを復元後の状態へ再適用する。
+function restoreState() {
+  let raw;
+  try {
+    raw = localStorage.getItem(ROUTE_SURVEY_STATE_KEY);
+  } catch (err) {
+    console.warn('restoreState read failed:', err);
+    return;
+  }
+  if (!raw) return;
+
+  let saved;
+  try {
+    saved = JSON.parse(raw);
+  } catch (err) {
+    console.warn('restoreState parse failed:', err);
+    return;
+  }
+
+  let restored = 0;
+  Object.entries(saved).forEach(([rosenNo, s]) => {
+    // 現在のGeoJSONに存在する路線のみ復元（hosouJuko/hosouSho 等は描画時の値を保持）
+    if (!routeStates[rosenNo] || !s || s.status == null) return;
+    routeStates[rosenNo].status    = s.status;
+    routeStates[rosenNo].startTime = s.startTime != null ? s.startTime : null;
+    routeStates[rosenNo].endTime   = s.endTime != null ? s.endTime : null;
+    if (s.memo != null) routeStates[rosenNo].memo = s.memo;  // 音声メモも復元
+    if (s.status === 'editing') editingRouteNo = rosenNo;
+    updatePolyline(rosenNo);  // 色を復元後状態へ再適用
+    restored++;
+  });
+
+  updateStats();  // 件数バッジを復元後状態へ再適用
+  if (restored > 0) {
+    document.getElementById('route-info').textContent =
+      `${restored} 路線の実査状態を自動復元しました`;
+    document.getElementById('action-hint').textContent =
+      '路線をタップ→実査開始 / 再タップ→実査完了';
+  }
+}
+
+// =====================================================
 //  GeoJSON読み込み
 // =====================================================
 function loadGeoJSON(event) {
@@ -499,6 +557,9 @@ function renderRoutes(geojson) {
   map.off('zoomend', onZoomEnd);
   map.on('zoomend', onZoomEnd);
   onZoomEnd(); // 初回実行
+
+  // 路線描画が完了したので、保存済み状態を自動復元する
+  restoreState();
 }
 
 // =====================================================
@@ -669,6 +730,7 @@ function resetRoute() {
   hideResetBtn();
   showInfo(rosenNo, `↩ 未編集に戻しました`, '');
   saveToGDrive();
+  persistState();  // localStorage にも保存（Drive保存と並走）
 }
 
 function handleTap(rosenNo) {
@@ -709,6 +771,7 @@ function handleTap(rosenNo) {
 
   updateStats();
   saveToGDrive();
+  persistState();  // localStorage にも保存（Drive保存と並走）
 }
 
 // ポリライン更新（Canvas描画ではsetStyleが効かないため再作成）
