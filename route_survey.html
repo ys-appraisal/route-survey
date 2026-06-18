@@ -384,6 +384,7 @@
 // =====================================================
 const COLOR = {
   DEFAULT:   '#7FFF00',  // ライムグリーン（アスファルト舗装・デフォルト）
+  WIDE: '#228B22',  // フォレストグリーン（幅員4m以上・デフォルト枠）
   COLOR_PAVE:'#C2185B',  // 濃いピンク（カラー舗装）
   UNPAVED:   '#FF8C00',  // オレンジ（未舗装）
   EDITING:   '#FFE066',  // 黄色（編集中）
@@ -546,6 +547,7 @@ function renderRoutes(geojson) {
         endTime: null,
         hosouJuko,
         hosouSho,
+        fuin: props.FUIN_M != null ? Number(props.FUIN_M) : null,
       };
     }
 
@@ -735,7 +737,7 @@ function getStyle(state) {
   } else if (state.hosouJuko === 0 && state.hosouSho === 1) {
     color = COLOR.COLOR_PAVE;    // カラー舗装：濃いピンク
   } else {
-    color = COLOR.DEFAULT;       // アスファルト・HOSOU_JUKO=1・その他：ライムグリーン
+    color = (state.fuin != null && state.fuin >= 4) ? COLOR.WIDE : COLOR.DEFAULT;  // 4m以上=フォレストグリーン / 4m未満=ライム
   }
   return { color, weight: getWeight(zoom, 'default'), opacity: OPACITY.DEFAULT };
 }
